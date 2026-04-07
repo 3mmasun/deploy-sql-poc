@@ -1,0 +1,5 @@
+scripts:
+  - scripts/operations/01_insert_sample_users.sql
+  - scripts/operations/02_insert_sample_orders.sql
+  - scripts/others/01_create_role.sql
+  - scripts/others/02_create_views.sql

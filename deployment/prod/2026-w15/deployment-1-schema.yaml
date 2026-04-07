@@ -1,0 +1,3 @@
+scripts:
+  - scripts/schema/01_create_users_table.sql
+  - scripts/schema/02_create_orders_table.sql

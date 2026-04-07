@@ -1,0 +1,5 @@
+scripts:
+  - scripts/schema/02_create_orders_table.sql
+  - scripts/operations/01_insert_sample_users.sql
+  - scripts/operations/02_insert_sample_orders.sql
+  - scripts/others/02_create_views.sql
