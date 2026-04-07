@@ -1,9 +1,4 @@
 #!/usr/bin/env python3
-"""
-Deploy script for Snowflake SQL deployments
-Reads YAML deployment configurations and generates deployment manifests
-"""
-
 import sys
 import os
 import glob
@@ -96,10 +91,7 @@ def extract_sql_metadata(project_root: Path, script_path: str) -> dict:
 
 def generate_manifest(environment: str, scripts: list, week: str = None) -> str:
     """Generate deployment manifest content (script paths only)."""
-    manifest = [
-        "sampleprofile",
-        "",
-    ]
+    manifest = []
 
     manifest.extend(scripts)
     manifest.append("")  # Trailing newline
