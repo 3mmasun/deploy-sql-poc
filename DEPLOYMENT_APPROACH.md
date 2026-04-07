@@ -6,14 +6,19 @@ This proof of concept demonstrates a scalable, conflict-resistant approach to ma
 
 ### Folder Structure
 
+#### Assumptions
+Non-prod testing can be done on feature branch since the same set of of files will be tested across all environment. 
+
+Therefore, `dev` `uat` and `preprod` will all read from deployment/non-prod folder
+
 ```
 deployment/
 ├── non-prod/
-│   ├── deployment-001.yaml    (Engineer 1: Schema changes)
+│   ├── simon-deployment.yaml    (Engineer Simon)
 └── prod/
     └── 2026-w15/
-        ├── deployment-1-schema.yaml    (Engineer A: Schema)
-        └── deployment-2-ops.yaml       (Engineer B: Operations)
+        ├── bob-deployment.yaml    (Engineer Bob)
+        └── alice-deployment.yaml  (Engineer Alice)
 
 scripts/
 ├── schema/
@@ -62,10 +67,10 @@ Folder based, different files
 ```
 main branch
     ↑
-    ├─ feature/JIRA-101 (creates: deployment/prod/<DEPLOY_ID>/deployment-1-schema.yaml)
+    ├─ feature/JIRA-101 (creates: deployment/prod/<DEPLOY_ID>/bob-deployment.yaml)
     │   └─ New file, no conflicts
     │
-    └─ feature/JIRA-202 (creates: deployment/prod/<DEPLOY_ID>/deployment-2-ops.yaml)
+    └─ feature/JIRA-202 (creates: deployment/prod/<DEPLOY_ID>/alice-deployment.yaml)
         └─ New file, no conflicts
 
     ✅ Merge cleanly: Different files in same directory
@@ -90,7 +95,7 @@ SQL script metadata (recommended)
 ```
 
 **Why This Works:**
-- Each engineer creates their own YAML file (e.g., `deployment-1-schema.yaml`, `deployment-2-ops.yaml`)
+- Each engineer creates their own YAML file (e.g., `bob-deployment.yaml`, `alice-deployment.yaml`)
 - Git naturally merges different files without conflicts
 - The deploy script combines them automatically
 
@@ -132,10 +137,10 @@ git checkout -b feature/JIRA-101-add-users-table
 # scripts/schema/01_create_users_table.sql
 
 # Create new YAML file for non-prod deployment and test in lower environments
-# deployment/non-prod/deployment-1-schema.yaml
+# deployment/non-prod/bob-deployment.yaml
 
 # Move YAML file into prod deployment
-# deployment/prod/2026-w15/deployment-1-schema.yaml
+# deployment/prod/2026-w15/bob-deployment.yaml
 
 # Commit changes
 # Create pull request to main
@@ -151,10 +156,10 @@ git checkout -b feature/JIRA-202-add-order-operations
 # scripts/operations/01_insert_sample_orders.sql
 
 # Create different YAML file (different naming) and test in lower environment
-# deployment/non-prod/deployment-2-ops.yaml
+# deployment/non-prod/alice-deployment.yaml
 
 # Move YAML file into prod deployment
-# deployment/prod/2026-w15/deployment-2-ops.yaml
+# deployment/prod/2026-w15/alice-deployment.yaml
 
 # Commit changes
 # Create pull request to main
