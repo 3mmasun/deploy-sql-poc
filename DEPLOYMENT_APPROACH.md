@@ -1,17 +1,15 @@
-# Snowflake SQL Deployment POC
+# SQL Deployment POC
 
 ## Implementation Approach
 
-This proof of concept demonstrates a scalable, conflict-resistant approach to managing SQL script deployments for Snowflake across multiple environments.
+This proof of concept demonstrates a scalable, conflict-resistant approach to managing SQL script deployments across multiple environments.
 
-### Architecture
+### Folder Structure
 
 ```
 deployment/
 ├── non-prod/
 │   ├── deployment-001.yaml    (Engineer 1: Schema changes)
-│   ├── deployment-002.yaml    (Engineer 2: Operations)
-│   └── deployment-003.yaml    (Engineer 3: Full deployment)
 └── prod/
     └── 2026-w15/
         ├── deployment-1-schema.yaml    (Engineer A: Schema)
@@ -36,67 +34,69 @@ scripts/
 3. **Generates two artifacts**:
    - `deploy_overview.md` - Markdown review document with metadata
    - `scripts/2_scripts` - Ordered script list for deployment tools
-4. **Commits both artifacts** to main branch along with deployment YAML files
+4. **CICD**: subsequent steps can rely on the artifacts produced for approver review or actual deployment
 
 ## Key Benefits
 
 ### 1. **Avoids Merge Conflicts**
 
 **Traditional Approach (Conflict-Prone):**
+
+deployment.yaml represents a file that every engineer must modify to get their scripts deployed in an environment.
+
 ```
 main branch
     ↑
-    ├─ feature/JIRA-101 (modifies: deployment-prod.yaml)
+    ├─ feature/JIRA-101 (modifies: deployment.yaml)
     │   └─ Adds schema scripts
     │
-    └─ feature/JIRA-202 (modifies: deployment-prod.yaml)
+    └─ feature/JIRA-202 (modifies: deployment.yaml)
         └─ Adds operations scripts
 
     ❌ CONFLICT: Both branches modify the same file
 ```
 
-**Our Approach (Conflict-Free):**
+**New Approach (Conflict-Free):**
+Folder based, different files
+`
 ```
 main branch
     ↑
-    ├─ feature/JIRA-101 (creates: deployment-1-schema.yaml)
+    ├─ feature/JIRA-101 (creates: deployment/prod/<DEPLOY_ID>/deployment-1-schema.yaml)
     │   └─ New file, no conflicts
     │
-    └─ feature/JIRA-202 (creates: deployment-2-ops.yaml)
+    └─ feature/JIRA-202 (creates: deployment/prod/<DEPLOY_ID>/deployment-2-ops.yaml)
         └─ New file, no conflicts
 
     ✅ Merge cleanly: Different files in same directory
 ```
 
+deployment.yaml is a list of SQL scripts to run in sequence.
+```
+scripts:
+  - scripts/schema/01_create_users_table.sql
+  - scripts/schema/02_create_orders_table.sql
+```
+
+SQL script metadata (recommended)
+```
+-- ============================================================================
+-- Metadata
+-- ============================================================================
+-- JIRA Issue: DATA-301
+-- Author: Frank Miller
+-- Impact: Creates data_analyst role with SELECT permissions on all tables in public schema
+-- ============================================================================
+```
+
 **Why This Works:**
-- Each engineer creates their own YAML file (e.g., `deployment-1-*.yaml`, `deployment-2-*.yaml`)
+- Each engineer creates their own YAML file (e.g., `deployment-1-schema.yaml`, `deployment-2-ops.yaml`)
 - Git naturally merges different files without conflicts
-- Files are sorted alphabetically for deterministic ordering
 - The deploy script combines them automatically
 
 ### 2. **Complete Deployment History in Main**
 
-All deployment artifacts are committed to the main branch:
-
-```bash
-git log --oneline
-
-e3f8c2e deployment: Add order operations to 2026-w15
-  - deployment/prod/2026-w15/deployment-2-ops.yaml
-  - deploy_overview.md (auto-generated)
-  - scripts/2_deploy_scripts.mst (auto-generated)
-
-d1a5f9b deployment: Add user schema to 2026-w15
-  - deployment/prod/2026-w15/deployment-1-schema.yaml
-  - deploy_overview.md (auto-generated)
-  - scripts/2_deploy_scripts.mst (auto-generated)
-```
-
-**Benefits:**
-- Audit trail: See exactly what was deployed in each commit
-- Rollback support: Can revert to any previous deployment
-- Review history: View metadata (JIRA, Author, Impact) in markdown
-- Reproducible: deploy_overview.md shows exact deployment details
+All historical deployments are kepted in `deployment/prod/<DEPLOY_ID>`
 
 ### 3. **Clear Metadata for Reviewers**
 
@@ -128,20 +128,17 @@ Generated `deploy_overview.md` provides:
 # Create feature branch
 git checkout -b feature/JIRA-101-add-users-table
 
-# Create new YAML file for prod deployment
-# deployment/prod/2026-w15/deployment-1-schema.yaml
-
 # Create SQL script
 # scripts/schema/01_create_users_table.sql
 
-# Run deploy script to validate
-python3 deploy.py prod 2026-w15
+# Create new YAML file for non-prod deployment and test in lower environments
+# deployment/non-prod/deployment-1-schema.yaml
 
-# Review generated deploy_overview.md
+# Move YAML file into prod deployment
+# deployment/prod/2026-w15/deployment-1-schema.yaml
+
 # Commit changes
-git add .
-git commit -m "feat: Add user schema to 2026-w15 deployment (JIRA-101)"
-git push origin feature/JIRA-101-add-users-table
+# Create pull request to main
 ```
 
 ### Engineer 2: Operations (JIRA-202)
@@ -150,35 +147,17 @@ git push origin feature/JIRA-101-add-users-table
 # Create independent feature branch
 git checkout -b feature/JIRA-202-add-order-operations
 
-# Create different YAML file (different naming)
-# deployment/prod/2026-w15/deployment-2-ops.yaml
-
 # Create SQL scripts
 # scripts/operations/01_insert_sample_orders.sql
 
-# Run deploy script to validate
-python3 deploy.py prod 2026-w15
+# Create different YAML file (different naming) and test in lower environment
+# deployment/non-prod/deployment-2-ops.yaml
+
+# Move YAML file into prod deployment
+# deployment/prod/2026-w15/deployment-2-ops.yaml
 
 # Commit changes
-git add .
-git commit -m "feat: Add order operations to 2026-w15 deployment (JIRA-202)"
-git push origin feature/JIRA-202-add-order-operations
-```
-
-### Pull Requests and Merge
-
-Both PRs merge to main **without conflicts** because:
-- Different YAML files (`deployment-1-*.yaml` vs `deployment-2-*.yaml`)
-- Same SQL scripts folder (no conflicts in well-organized structure)
-- Auto-generated artifacts (`deploy_overview.md`, `2_deploy_scripts.mst`) refresh on merge
-
-Result in main branch:
-```
-deployment/prod/2026-w15/
-├── deployment-1-schema.yaml       (from JIRA-101)
-├── deployment-2-ops.yaml          (from JIRA-202)
-deploy_overview.md                 (combined, latest)
-scripts/2_deploy_scripts.mst        (combined, latest)
+# Create pull request to main
 ```
 
 ## Deployment Environments
@@ -199,10 +178,6 @@ python3 deploy.py prod 2026-w16      → uses deployment/prod/2026-w16/
 | Aspect | Benefit |
 |--------|---------|
 | **Merge Conflicts** | ✅ Eliminated through separate YAML files |
-| **History** | ✅ Complete audit trail in git log |
-| **Traceability** | ✅ JIRA + Author + Impact metadata |
+| **History** | ✅ Complete deployment kept in explicit `prod/<DEPLOY_ID>` folder |
 | **Scalability** | ✅ Supports unlimited concurrent deployments |
-| **Safety** | ✅ Explicit week parameter for prod deployments |
 | **Automation** | ✅ Auto-generated review documents |
-
-This approach enables teams to work in parallel, ship faster, and maintain a complete history of all database deployments.
